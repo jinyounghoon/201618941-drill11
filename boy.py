@@ -49,12 +49,17 @@ class IdleState:
     @staticmethod
     def exit(boy, event):
         if event == SPACE:
-            boy.jump = 1
+            boy.jump_speed = 1
         pass
 
     @staticmethod
     def do(boy):
         boy.frame = (boy.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % 8
+        if boy.bbrick < 0:
+            boy.x += boy.velocity * game_framework.frame_time
+        elif boy.bbrick > 0:
+            boy.x += boy.bbrick
+        boy.x = clamp(25, boy.x, 1600 - 25)
         boy.timer -= 1
         if boy.timer == 0:
             boy.add_event(SLEEP_TIMER)
@@ -84,10 +89,11 @@ class RunState:
     @staticmethod
     def exit(boy, event):
         if event == SPACE:
-            boy.jump = 1
+            boy.jump_speed = 1
 
     @staticmethod
     def do(boy):
+        #boy.frame = (boy.frame + 1) % 8
         boy.frame = (boy.frame + FRAMES_PER_ACTION * ACTION_PER_TIME * game_framework.frame_time) % 8
         boy.x += boy.velocity * game_framework.frame_time
         boy.x = clamp(25, boy.x, 1600 - 25)
@@ -133,7 +139,7 @@ next_state_table = {
 }
 
 class Boy:
-
+    image = None
     def __init__(self):
         self.x, self.y = 1600 // 2, 90
         # Boy is only once created, so instance image loading is fine
@@ -142,19 +148,15 @@ class Boy:
         self.dir = 1
         self.velocity = 0
         self.frame = 0
-        self.jump = 0
         self.event_que = []
         self.cur_state = IdleState
         self.cur_state.enter(self, None)
-
+        self.jump_speed = 0
+        self.bbrick = 0
+        self.is_collide = False
     def get_bb(self):
-       return self.x - 50, self.y - 50, self.x + 50, self.y + 50
+        return self.x - 20, self.y -50, self.x + 20, self.y +50
 
-
-
-    def fire_ball(self):
-        ball = Ball(self.x, self.y, self.dir * RUN_SPEED_PPS * 10)
-        game_world.add_object(ball, 1)
 
 
     def add_event(self, event):
@@ -167,12 +169,17 @@ class Boy:
             self.cur_state.exit(self, event)
             self.cur_state = next_state_table[self.cur_state][event]
             self.cur_state.enter(self, event)
+        self.y += self.jump_speed
+        if self.y > 300:
+            self.jump_speed = -1
+        if self.y < 90:
+            self.jump_speed = 0
 
 
     def draw(self):
         self.cur_state.draw(self)
         self.font.draw(self.x - 60, self.y + 50, '(Time: %3.2f)' % get_time(), (255, 255, 0))
-        draw_rectangle(*self.get_bb())
+        #fill here
 
 
     def handle_event(self, event):
@@ -181,4 +188,4 @@ class Boy:
             self.add_event(key_event)
 
     def stop(self):
-        self.jump = 0
+        self.jump_speed = 0
